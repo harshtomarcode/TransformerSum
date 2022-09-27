@@ -15,6 +15,7 @@ from time import time
 
 import spacy
 from spacy.lang.en import English
+from spacy.language import Language
 from tqdm import tqdm
 
 import datasets as hf_nlp
@@ -22,6 +23,17 @@ from helpers import _get_word_ngrams, load_json
 
 logger = logging.getLogger(__name__)
 
+split_on = ['!', '.', '?', '։', '؟', '۔', '܀', '܁', '܂', '߹', '\n', ':',
+            '।', '॥', '၊', '။', '።', '፧', '፨', '᙮', '᜵', '᜶', '᠃', '᠉', '᥄',
+            '᥅', '᪨', '᪩', '᪪', '᪫', '᭚', '᭛', '᭞', '᭟', '᰻', '᰼', '᱾', '᱿',
+            '‼', '‽', '⁇', '⁈', '⁉', '⸮', '⸼', '꓿', '꘎', '꘏', '꛳', '꛷', '꡶',
+            '꡷', '꣎', '꣏', '꤯', '꧈', '꧉', '꩝', '꩞', '꩟', '꫰', '꫱', '꯫', '﹒',
+            '﹖', '﹗', '！', '．', '？', '𐩖', '𐩗', '𑁇', '𑁈', '𑂾', '𑂿', '𑃀',
+            '𑃁', '𑅁', '𑅂', '𑅃', '𑇅', '𑇆', '𑇍', '𑇞', '𑇟', '𑈸', '𑈹', '𑈻', '𑈼',
+            '𑊩', '𑑋', '𑑌', '𑗂', '𑗃', '𑗉', '𑗊', '𑗋', '𑗌', '𑗍', '𑗎', '𑗏', '𑗐',
+            '𑗑', '𑗒', '𑗓', '𑗔', '𑗕', '𑗖', '𑗗', '𑙁', '𑙂', '𑜼', '𑜽', '𑜾', '𑩂',
+            '𑩃', '𑪛', '𑪜', '𑱁', '𑱂', '𖩮', '𖩯', '𖫵', '𖬷', '𖬸', '𖭄', '𛲟', '𝪈',
+            '｡', '。']
 # Steps
 # Run cnn/dm processing script to get train, test, valid bin text files
 # For each bin:
@@ -83,8 +95,9 @@ def convert_to_extractive_driver(args):
     # more info: https://spacy.io/usage/processing-pipelines
     if args.sentencizer:
         nlp = English()
-        sentencizer = nlp.create_pipe("sentencizer")
-        nlp.add_pipe(sentencizer)
+        #sentencizer = nlp.create_pipe("sentencizer")
+        config = {"punct_chars": split_on}
+        nlp.add_pipe("sentencizer", config=config)
     else:
         nlp = spacy.load("en_core_web_sm", disable=["tagger", "ner"])
 
@@ -436,7 +449,7 @@ def tokenize(
     return sents
 
 
-def example_processor(inputs, args, oracle_mode="greedy", no_preprocess=False):
+def example_processor(inputs, args, oracle_mode="greedy", no_preprocess=True):
     """
     Create ``oracle_ids``, convert them to ``labels`` and run
     :meth:`~convert_to_extractive.preprocess`.
@@ -518,6 +531,7 @@ def combination_selection(doc_sent_list, abstract_sent_list, summary_size):
     max_idx = (0, 0)
     abstract = sum(abstract_sent_list, [])
     abstract = _rouge_clean(" ".join(abstract)).split()
+    summary_size = len(abstract)
     sents = [_rouge_clean(" ".join(s)).split() for s in doc_sent_list]
     evaluated_1grams = [_get_word_ngrams(1, [sent]) for sent in sents]
     reference_1grams = _get_word_ngrams(1, [abstract])
@@ -553,6 +567,7 @@ def greedy_selection(doc_sent_list, abstract_sent_list, summary_size):
     max_rouge = 0.0
     abstract = sum(abstract_sent_list, [])
     abstract = _rouge_clean(" ".join(abstract)).split()
+    summary_size = len(abstract)
     sents = [_rouge_clean(" ".join(s)).split() for s in doc_sent_list]
     evaluated_1grams = [_get_word_ngrams(1, [sent]) for sent in sents]
     reference_1grams = _get_word_ngrams(1, [abstract])
